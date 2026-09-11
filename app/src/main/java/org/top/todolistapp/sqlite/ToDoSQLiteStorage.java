@@ -31,56 +31,33 @@ public class ToDoSQLiteStorage implements ToDoStorage {
 
     @Override
     public void insert(ToDo toDo) {
+        Objects.requireNonNull(toDo, "toDo must not be null");
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-
-        ContentValues values = new ContentValues();
-        values.put(COLUMN_TEXT, toDo.getText());
-        values.put(COLUMN_PRIORITY, toDo.getPriority());
-        values.put(COLUMN_DONE, toDo.getDone());
-        values.put(COLUMN_DEADLINE,
-                toDo.getDeadline() == null ? null : toDo.getDeadline().getTime());
-
-        long newId = db.insertOrThrow(TABLE_NAME, null, values);
+        long newId = db.insertOrThrow(TABLE_NAME, null, toContentValues(toDo));
         toDo.setId((int) newId);
     }
 
     @Override
     public List<ToDo> selectAll() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_NAME,
-                null,
-                null,
-                null,
-                null,
-                null,
+        try (Cursor cursor = db.query(TABLE_NAME, null, null, null, null, null,
                 COLUMN_ID + " ASC")) {
-
-            List<ToDo> result = new ArrayList<>(cursor.getCount());
-
-            int idIdx = cursor.getColumnIndexOrThrow(COLUMN_ID);
-            int textIdx = cursor.getColumnIndexOrThrow(COLUMN_TEXT);
-            int priorityIdx = cursor.getColumnIndexOrThrow(COLUMN_PRIORITY);
-            int doneIdx = cursor.getColumnIndexOrThrow(COLUMN_DONE);
-            int deadlineIdx = cursor.getColumnIndexOrThrow(COLUMN_DEADLINE);
-
-            while (cursor.moveToNext()) {
-                ToDo todo = new ToDo();
-                todo.setId(cursor.getInt(idIdx));
-                todo.setText(cursor.getString(textIdx));
-                todo.setPriority(cursor.getInt(priorityIdx));
-                todo.setDone(cursor.getInt(doneIdx) != 0);
-                if (cursor.isNull(deadlineIdx)) {
-                    todo.setDeadline(null);
-                } else {
-                    todo.setDeadline(new Date(cursor.getLong(deadlineIdx)));
-                }
-                result.add(todo);
-            }
-
-            return result;
+            return readAllFromCursor(cursor);
         }
+    }
+
+    @Override
+    public void deleteAll() {
+        dbHelper.getWritableDatabase().delete(TABLE_NAME, null, null);
+    }
+
+    @Override
+    public void delete(Integer id) {
+        Objects.requireNonNull(id, "id must not be null");
+        dbHelper.getWritableDatabase().delete(
+                TABLE_NAME,
+                COLUMN_ID + " = ?",
+                new String[] { String.valueOf(id) });
     }
 
     @Override
@@ -88,42 +65,16 @@ public class ToDoSQLiteStorage implements ToDoStorage {
         Objects.requireNonNull(toDo, "toDo must not be null");
         Objects.requireNonNull(toDo.getId(), "toDo.id must not be null for update");
 
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-
-        ContentValues values = new ContentValues();
-        values.put(COLUMN_TEXT, toDo.getText());
-        values.put(COLUMN_PRIORITY, toDo.getPriority());
-        values.put(COLUMN_DONE, toDo.getDone());
-        values.put(COLUMN_DEADLINE,
-                toDo.getDeadline() == null ? null : toDo.getDeadline().getTime());
-
-        db.update(
+        dbHelper.getWritableDatabase().update(
                 TABLE_NAME,
-                values,
+                toContentValues(toDo),
                 COLUMN_ID + " = ?",
                 new String[] { String.valueOf(toDo.getId()) });
     }
 
     @Override
-    public void delete(Integer id) {
-        Objects.requireNonNull(id, "id must not be null");
-
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.delete(
-                TABLE_NAME,
-                COLUMN_ID + " = ?",
-                new String[] { String.valueOf(id) });
-    }
-    @Override
-    public void deleteAll() {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.delete(TABLE_NAME, null, null);
-    }
-    @Override
     public List<ToDo> selectByParam(ToDoSelectParam param) {
-        if (param == null) {
-            return selectAll();
-        }
+        if (param == null) return selectAll();
 
         List<String> conditions = new ArrayList<>();
         List<String> args = new ArrayList<>();
@@ -149,29 +100,27 @@ public class ToDoSQLiteStorage implements ToDoStorage {
             args.add(String.valueOf(param.getDeadlineTo().getTime()));
         }
 
-        String where = conditions.isEmpty()
-                ? null
-                : TextUtils.join(" AND ", conditions);
-        String[] whereArgs = args.isEmpty()
-                ? null
-                : args.toArray(new String[0]);
+        String where = conditions.isEmpty() ? null : TextUtils.join(" AND ", conditions);
+        String[] whereArgs = args.isEmpty() ? null : args.toArray(new String[0]);
 
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_NAME,
-                null,
-                where,
-                whereArgs,
-                null,
-                null,
-                COLUMN_ID + " ASC")) {
-
+        try (Cursor cursor = db.query(TABLE_NAME, null, where, whereArgs,
+                null, null, COLUMN_ID + " ASC")) {
             return readAllFromCursor(cursor);
         }
     }
 
-    private List<ToDo> readAllFromCursor(Cursor cursor) {
+    private static ContentValues toContentValues(ToDo toDo) {
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_TEXT, toDo.getText());
+        values.put(COLUMN_PRIORITY, toDo.getPriority());
+        values.put(COLUMN_DONE, toDo.getDone());
+        values.put(COLUMN_DEADLINE,
+                toDo.getDeadline() == null ? null : toDo.getDeadline().getTime());
+        return values;
+    }
+
+    private static List<ToDo> readAllFromCursor(Cursor cursor) {
         List<ToDo> result = new ArrayList<>(cursor.getCount());
 
         int idIdx = cursor.getColumnIndexOrThrow(COLUMN_ID);
@@ -193,7 +142,6 @@ public class ToDoSQLiteStorage implements ToDoStorage {
             }
             result.add(todo);
         }
-
         return result;
     }
 }

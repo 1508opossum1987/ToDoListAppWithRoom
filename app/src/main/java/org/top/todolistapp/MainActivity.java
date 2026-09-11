@@ -1,15 +1,12 @@
 package org.top.todolistapp;
 
 import android.content.Intent;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import org.top.todolistapp.deps.ApplicationDependencies;
-import org.top.todolistapp.sqlite.DatabaseHelper;
+import org.top.todolistapp.ui.ToDoListActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -20,7 +17,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onGoToDoAppBtnClick(View view) {
-        Toast.makeText(this, "Not implemented", Toast.LENGTH_LONG).show();
+        startActivity(new Intent(this, ToDoListActivity.class));
     }
 
     public void onGoToDoTestBtnClick(View view) {
